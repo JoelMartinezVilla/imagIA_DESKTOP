@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'dart:io';
-import 'package:path_provider/path_provider.dart';
 
 void main() {
   runApp(MyApp());
@@ -40,26 +39,47 @@ class _PantallaInicioConLogicaState extends State<PantallaInicioConLogica> {
     _cargarDades(); // Cargar los datos guardados al iniciar la pantalla
   }
 
-  // Obtener el directorio donde se guardarán los datos (en este caso, documentos del sistema)
-  Future<String> _getLocalPath() async {
-    final directory = await getApplicationDocumentsDirectory();
-    return directory.path; 
-  }
-
-  // Crear el archivo donde se guardarán los datos
+  // Crear el archivo donde se guardarán los datos en la ruta especificada
   Future<File> _getLocalFile() async {
-    final path = await _getLocalPath();
-    return File('$path/dades.json'); // Guarda en el directorio de documentos del sistema
+    // Define la ruta absoluta donde se guardarán los datos
+    final path = '/home/super/Documents/GitHub/imagIA_DESKTOP/imagiadesktop/lib/';
+
+    // Retorna el archivo con la nueva ruta
+    return File('$path/dades.json');
   }
 
   // Guardar la URL del servidor y el usuario en el archivo
   Future<void> _guardarDades() async {
     final File file = await _getLocalFile();
-    Map<String, String> dades = {
-      'url': _urlController.text,
-      'usuario': _usuarioController.text,
-    };
-    await file.writeAsString(jsonEncode(dades));
+    Map<String, dynamic> datos = {'urls': [], 'usuarios': []};
+
+    try {
+      // Leer el archivo existente si ya tiene datos
+      if (await file.exists()) {
+        String contents = await file.readAsString();
+        if (contents.isNotEmpty) {
+          datos = jsonDecode(contents); // Cargar el JSON existente
+
+          // Verificar que las listas existan, si no, inicializarlas
+          datos['urls'] = (datos['urls'] ?? []) as List;
+          datos['usuarios'] = (datos['usuarios'] ?? []) as List;
+        }
+      }
+
+      // Añadir los nuevos datos de URL y usuario
+      (datos['urls'] as List).add(_urlController.text);
+      (datos['usuarios'] as List).add(_usuarioController.text);
+
+      // Guardar los datos actualizados en el archivo
+      await file.writeAsString(jsonEncode(datos));
+
+      // Depuración: Mostrar los datos que se han guardado
+      print('Datos guardados: ${jsonEncode(datos)}');
+      print('Archivo guardado correctamente en ${file.path}');
+    } catch (e) {
+      // Manejar cualquier error en la escritura del archivo
+      print('Error al guardar los datos: $e');
+    }
   }
 
   // Cargar los datos guardados del archivo
@@ -68,14 +88,17 @@ class _PantallaInicioConLogicaState extends State<PantallaInicioConLogica> {
       final File file = await _getLocalFile();
       if (await file.exists()) {
         String contents = await file.readAsString();
-        Map<String, dynamic> dades = jsonDecode(contents);
-        setState(() {
-          _urlController.text = dades['url'] ?? '';
-          _usuarioController.text = dades['usuario'] ?? '';
-        });
+        Map<String, dynamic> datos = jsonDecode(contents);
+
+        if (datos.isNotEmpty) {
+          setState(() {
+            _urlController.text = datos['urls'].isNotEmpty ? datos['urls'].last : '';
+            _usuarioController.text = datos['usuarios'].isNotEmpty ? datos['usuarios'].last : '';
+          });
+        }
       }
     } catch (e) {
-      // Si ocurre un error, no hacemos nada
+      print("Error al cargar datos: $e");
     }
   }
 
@@ -130,6 +153,7 @@ class _PantallaInicioConLogicaState extends State<PantallaInicioConLogica> {
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                     content: Text("Datos guardados correctamente."),
                   ));
+                  print("Contraseña usada: ${_passwordController.text}");
                 },
                 child: Text('Acceder'),
               ),
