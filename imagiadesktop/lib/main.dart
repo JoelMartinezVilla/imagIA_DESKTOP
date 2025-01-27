@@ -124,7 +124,7 @@ class _PantallaInicioConLogicaState extends State<PantallaInicioConLogica> {
   void _mostrarMensajeError(String mensaje) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(mensaje),
-      backgroundColor: Colors.red, // Color rojo para el mensaje de error
+      backgroundColor: Colors.red, 
     ));
   }
 
@@ -132,14 +132,14 @@ class _PantallaInicioConLogicaState extends State<PantallaInicioConLogica> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.blue[800], // Color personalizado
-        centerTitle: true, // Centra el título
+        backgroundColor: Colors.blue[800], 
+        centerTitle: true, 
         title: Text(
-          'IMAGIA3 DESKTOP', // Título de la app
+          'IMAGIA3 DESKTOP', 
           style: TextStyle(
-            color: Colors.white, // Color del texto
+            color: Colors.white, 
             fontWeight: FontWeight.bold,
-            fontSize: 24.0, // Tamaño del texto
+            fontSize: 24.0, 
           ),
         ),
       ),
@@ -152,7 +152,7 @@ class _PantallaInicioConLogicaState extends State<PantallaInicioConLogica> {
             children: [
               // Campo de URL del servidor
               SizedBox(
-                width: 250, // Tamaño más pequeño
+                width: 250, 
                 child: TextField(
                   controller: _urlController,
                   decoration: InputDecoration(
@@ -165,7 +165,7 @@ class _PantallaInicioConLogicaState extends State<PantallaInicioConLogica> {
 
               // Campo de Usuario
               SizedBox(
-                width: 250, // Tamaño más pequeño
+                width: 250, 
                 child: TextField(
                   controller: _usuarioController,
                   decoration: InputDecoration(
@@ -178,7 +178,7 @@ class _PantallaInicioConLogicaState extends State<PantallaInicioConLogica> {
 
               // Campo de Contraseña
               SizedBox(
-                width: 250, // Tamaño más pequeño
+                width: 250, 
                 child: TextField(
                   controller: _passwordController,
                   decoration: InputDecoration(
