@@ -41,7 +41,6 @@ class _PantallaInicioConLogicaState extends State<PantallaInicioConLogica> {
 
   // Crear el archivo donde se guardarán los datos en la ruta especificada
   Future<File> _getLocalFile() async {
-    // Define la ruta absoluta donde se guardarán los datos
     final path = '/home/super/Documents/GitHub/imagIA_DESKTOP/imagiadesktop/lib/';
 
     // Retorna el archivo con la nueva ruta
@@ -102,11 +101,47 @@ class _PantallaInicioConLogicaState extends State<PantallaInicioConLogica> {
     }
   }
 
+  // Validación de los campos
+  void _validarYGuardarDatos() {
+    // Verificar si alguno de los campos está vacío
+    if (_urlController.text.isEmpty) {
+      _mostrarMensajeError('Falta la URL del servidor');
+    } else if (_usuarioController.text.isEmpty) {
+      _mostrarMensajeError('Falta el usuario');
+    } else if (_passwordController.text.isEmpty) {
+      _mostrarMensajeError('Falta la contraseña');
+    } else {
+      // Si todos los campos están completos, guardar los datos
+      _guardarDades();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text("Datos guardados correctamente."),
+      ));
+      print("Contraseña usada: ${_passwordController.text}");
+    }
+  }
+
+  // Función para mostrar el mensaje de error
+  void _mostrarMensajeError(String mensaje) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(mensaje),
+      backgroundColor: Colors.red, // Color rojo para el mensaje de error
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Inicio de sesión'),
+        backgroundColor: Colors.blue[800], // Color personalizado
+        centerTitle: true, // Centra el título
+        title: Text(
+          'IMAGIA3 DESKTOP', // Título de la app
+          style: TextStyle(
+            color: Colors.white, // Color del texto
+            fontWeight: FontWeight.bold,
+            fontSize: 24.0, // Tamaño del texto
+          ),
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -116,45 +151,48 @@ class _PantallaInicioConLogicaState extends State<PantallaInicioConLogica> {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               // Campo de URL del servidor
-              TextField(
-                controller: _urlController,
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(),
-                  labelText: 'URL del servidor',
+              SizedBox(
+                width: 250, // Tamaño más pequeño
+                child: TextField(
+                  controller: _urlController,
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(),
+                    labelText: 'URL del servidor',
+                  ),
                 ),
               ),
               SizedBox(height: 16.0),
 
               // Campo de Usuario
-              TextField(
-                controller: _usuarioController,
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(),
-                  labelText: 'Usuario',
+              SizedBox(
+                width: 250, // Tamaño más pequeño
+                child: TextField(
+                  controller: _usuarioController,
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(),
+                    labelText: 'Usuario',
+                  ),
                 ),
               ),
               SizedBox(height: 16.0),
 
               // Campo de Contraseña
-              TextField(
-                controller: _passwordController,
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(),
-                  labelText: 'Contraseña',
+              SizedBox(
+                width: 250, // Tamaño más pequeño
+                child: TextField(
+                  controller: _passwordController,
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(),
+                    labelText: 'Contraseña',
+                  ),
+                  obscureText: true,
                 ),
-                obscureText: true,
               ),
               SizedBox(height: 24.0),
 
               // Botón de Acceder
               ElevatedButton(
-                onPressed: () {
-                  _guardarDades(); // Guarda la URL y el usuario al presionar el botón
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text("Datos guardados correctamente."),
-                  ));
-                  print("Contraseña usada: ${_passwordController.text}");
-                },
+                onPressed: _validarYGuardarDatos, // Validar antes de guardar
                 child: Text('Acceder'),
               ),
             ],
