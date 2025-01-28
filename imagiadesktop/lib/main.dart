@@ -139,7 +139,7 @@ class _PantallaInicioConLogicaState extends State<PantallaInicioConLogica> {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Campo de URL del servidor
+              // Campo de URL del servidor con ícono
               SizedBox(
                 width: 250, 
                 child: TextField(
@@ -147,12 +147,13 @@ class _PantallaInicioConLogicaState extends State<PantallaInicioConLogica> {
                   decoration: InputDecoration(
                     border: OutlineInputBorder(),
                     labelText: 'URL del servidor',
+                    prefixIcon: Icon(Icons.language), // Ícono para URL
                   ),
                 ),
               ),
               SizedBox(height: 16.0),
 
-              // Campo de Usuario
+              // Campo de Usuario con ícono
               SizedBox(
                 width: 250, 
                 child: TextField(
@@ -160,12 +161,13 @@ class _PantallaInicioConLogicaState extends State<PantallaInicioConLogica> {
                   decoration: InputDecoration(
                     border: OutlineInputBorder(),
                     labelText: 'Usuario',
+                    prefixIcon: Icon(Icons.person), // Ícono para Usuario
                   ),
                 ),
               ),
               SizedBox(height: 16.0),
 
-              // Campo de Contraseña
+              // Campo de Contraseña con ícono
               SizedBox(
                 width: 250, 
                 child: TextField(
@@ -173,6 +175,7 @@ class _PantallaInicioConLogicaState extends State<PantallaInicioConLogica> {
                   decoration: InputDecoration(
                     border: OutlineInputBorder(),
                     labelText: 'Contraseña',
+                    prefixIcon: Icon(Icons.lock), // Ícono para Contraseña
                   ),
                   obscureText: true,
                 ),
