@@ -47,29 +47,18 @@ class _PantallaInicioConLogicaState extends State<PantallaInicioConLogica> {
     return File('$path/dades.json');
   }
 
-  // Guardar la URL del servidor y el usuario en el archivo
+  // Guardar la URL del servidor y el usuario en el archivo (sobrescribe los anteriores)
   Future<void> _guardarDades() async {
     final File file = await _getLocalFile();
-    Map<String, dynamic> datos = {'urls': [], 'usuarios': []};
+
+    // Crear un nuevo mapa de datos con los valores actuales (sobrescribiendo los anteriores)
+    Map<String, dynamic> datos = {
+      'urls': [_urlController.text], // Crear una nueva lista con la nueva URL
+      'usuarios': [_usuarioController.text] // Crear una nueva lista con el nuevo usuario
+    };
 
     try {
-      // Leer el archivo existente si ya tiene datos
-      if (await file.exists()) {
-        String contents = await file.readAsString();
-        if (contents.isNotEmpty) {
-          datos = jsonDecode(contents); // Cargar el JSON existente
-
-          // Verificar que las listas existan, si no, inicializarlas
-          datos['urls'] = (datos['urls'] ?? []) as List;
-          datos['usuarios'] = (datos['usuarios'] ?? []) as List;
-        }
-      }
-
-      // Añadir los nuevos datos de URL y usuario
-      (datos['urls'] as List).add(_urlController.text);
-      (datos['usuarios'] as List).add(_usuarioController.text);
-
-      // Guardar los datos actualizados en el archivo
+      // Guardar los datos actualizados en el archivo (sobreescribe el archivo anterior)
       await file.writeAsString(jsonEncode(datos));
 
       // Depuración: Mostrar los datos que se han guardado
