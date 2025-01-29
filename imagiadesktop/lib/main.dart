@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'dart:convert';
-import 'dart:io';
+import 'dart:convert'; 
+import 'dart:io'; 
+import 'package:http/http.dart' as http; 
+import 'autentication.dart'; // Importar la nueva pantalla
 
 void main() {
   runApp(MyApp());
@@ -36,42 +38,30 @@ class _PantallaInicioConLogicaState extends State<PantallaInicioConLogica> {
   @override
   void initState() {
     super.initState();
-    _cargarDades(); // Cargar los datos guardados al iniciar la pantalla
+    _cargarDades();
   }
 
-
-  // Crear el archivo donde se guardarán los datos en la ruta especificada
   Future<File> _getLocalFile() async {
     final path = './lib/';
-
-    // Retorna el archivo con la nueva ruta
     return File('$path/dades.json');
   }
 
-  // Guardar la URL del servidor y el usuario en el archivo (sobrescribe los anteriores)
   Future<void> _guardarDades() async {
     final File file = await _getLocalFile();
-
-    // Crear un nuevo mapa de datos con los valores actuales (sobrescribiendo los anteriores)
     Map<String, dynamic> datos = {
       'urls': [_urlController.text], 
       'usuarios': [_usuarioController.text] 
     };
 
     try {
-      // Guardar los datos actualizados en el archivo (sobreescribe el archivo anterior)
       await file.writeAsString(jsonEncode(datos));
-
-      // Depuración: Mostrar los datos que se han guardado
       print('Datos guardados: ${jsonEncode(datos)}');
       print('Archivo guardado correctamente en ${file.path}');
     } catch (e) {
-      // Manejar cualquier error en la escritura del archivo
       print('Error al guardar los datos: $e');
     }
   }
 
-  // Cargar los datos guardados del archivo
   Future<void> _cargarDades() async {
     try {
       final File file = await _getLocalFile();
@@ -91,9 +81,51 @@ class _PantallaInicioConLogicaState extends State<PantallaInicioConLogica> {
     }
   }
 
-  // Validación de los campos
+  Future<void> _realizarSolicitudDeLogin() async {
+    final url = _urlController.text.trim(); 
+    final usuario = _usuarioController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (url.isEmpty || usuario.isEmpty || password.isEmpty) {
+      _mostrarMensajeError('Todos los campos son obligatorios');
+      return;
+    }
+
+    try {
+      final uri = Uri.parse('$url/api/usuaris/registrar');
+      final response = await http.post(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'usuario': usuario,
+          'password': password,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Inicio de sesión exitoso'),
+        ));
+        print('Respuesta del servidor: ${response.body}');
+
+        // Navegar a la pantalla de autenticación
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => AutenticationPage()), // Redirigir a la pantalla de autenticación
+        );
+      } else {
+        _mostrarMensajeError('Error en la solicitud: ${response.statusCode}');
+        print('Error en la solicitud: ${response.statusCode}');
+      }
+    } catch (e) {
+      _mostrarMensajeError('Error de conexión: $e');
+      print('Error de conexión: $e');
+    }
+  }
+
   void _validarYGuardarDatos() {
-    // Verificar si alguno de los campos está vacío
     if (_urlController.text.isEmpty) {
       _mostrarMensajeError('Falta la URL del servidor');
     } else if (_usuarioController.text.isEmpty) {
@@ -101,20 +133,15 @@ class _PantallaInicioConLogicaState extends State<PantallaInicioConLogica> {
     } else if (_passwordController.text.isEmpty) {
       _mostrarMensajeError('Falta la contraseña');
     } else {
-      // Si todos los campos están completos, guardar los datos
       _guardarDades();
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text("Datos guardados correctamente."),
-      ));
-      print("Contraseña usada: ${_passwordController.text}");
+      _realizarSolicitudDeLogin();
     }
   }
 
-  // Función para mostrar el mensaje de error
   void _mostrarMensajeError(String mensaje) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(mensaje),
-      backgroundColor: Colors.red, 
+      backgroundColor: Colors.red,
     ));
   }
 
@@ -122,14 +149,14 @@ class _PantallaInicioConLogicaState extends State<PantallaInicioConLogica> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.blue[800], 
-        centerTitle: true, 
+        backgroundColor: Colors.blue[800],
+        centerTitle: true,
         title: Text(
-          'IMAGIA3 DESKTOP', 
+          'IMAGIA3 DESKTOP',
           style: TextStyle(
-            color: Colors.white, 
+            color: Colors.white,
             fontWeight: FontWeight.bold,
-            fontSize: 24.0, 
+            fontSize: 24.0,
           ),
         ),
       ),
@@ -140,52 +167,45 @@ class _PantallaInicioConLogicaState extends State<PantallaInicioConLogica> {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Campo de URL del servidor con ícono
               SizedBox(
-                width: 250, 
+                width: 250,
                 child: TextField(
                   controller: _urlController,
                   decoration: InputDecoration(
                     border: OutlineInputBorder(),
                     labelText: 'URL del servidor',
-                    prefixIcon: Icon(Icons.language), // Ícono para URL
+                    prefixIcon: Icon(Icons.language),
                   ),
                 ),
               ),
               SizedBox(height: 16.0),
-
-              // Campo de Usuario con ícono
               SizedBox(
-                width: 250, 
+                width: 250,
                 child: TextField(
                   controller: _usuarioController,
                   decoration: InputDecoration(
                     border: OutlineInputBorder(),
                     labelText: 'Usuario',
-                    prefixIcon: Icon(Icons.person), // Ícono para Usuario
+                    prefixIcon: Icon(Icons.person),
                   ),
                 ),
               ),
               SizedBox(height: 16.0),
-
-              // Campo de Contraseña con ícono
               SizedBox(
-                width: 250, 
+                width: 250,
                 child: TextField(
                   controller: _passwordController,
                   decoration: InputDecoration(
                     border: OutlineInputBorder(),
                     labelText: 'Contraseña',
-                    prefixIcon: Icon(Icons.lock), // Ícono para Contraseña
+                    prefixIcon: Icon(Icons.lock),
                   ),
                   obscureText: true,
                 ),
               ),
               SizedBox(height: 24.0),
-
-              // Botón de Acceder
               ElevatedButton(
-                onPressed: _validarYGuardarDatos, // Validar antes de guardar
+                onPressed: _validarYGuardarDatos,
                 child: Text('Acceder'),
               ),
             ],
