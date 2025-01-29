@@ -39,9 +39,10 @@ class _PantallaInicioConLogicaState extends State<PantallaInicioConLogica> {
     _cargarDades(); // Cargar los datos guardados al iniciar la pantalla
   }
 
+
   // Crear el archivo donde se guardarán los datos en la ruta especificada
   Future<File> _getLocalFile() async {
-    final path = '/home/super/Documents/GitHub/imagIA_DESKTOP/imagiadesktop/lib/';
+    final path = './lib/';
 
     // Retorna el archivo con la nueva ruta
     return File('$path/dades.json');
@@ -53,8 +54,8 @@ class _PantallaInicioConLogicaState extends State<PantallaInicioConLogica> {
 
     // Crear un nuevo mapa de datos con los valores actuales (sobrescribiendo los anteriores)
     Map<String, dynamic> datos = {
-      'urls': [_urlController.text], // Crear una nueva lista con la nueva URL
-      'usuarios': [_usuarioController.text] // Crear una nueva lista con el nuevo usuario
+      'urls': [_urlController.text], 
+      'usuarios': [_usuarioController.text] 
     };
 
     try {
