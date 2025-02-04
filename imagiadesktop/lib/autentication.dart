@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class AutenticationPage extends StatefulWidget {
-  final String token; // Recibe el token desde el main
+  final String token; 
 
   AutenticationPage({required this.token});
 
@@ -19,19 +19,19 @@ class _AutenticationPageState extends State<AutenticationPage> {
   @override
   void initState() {
     super.initState();
-    _obtenerUsuarios(); // Llamada inicial para obtener el listado de usuarios
+    _obtenerUsuarios(); 
   }
 
   // Función para obtener la lista de usuarios desde el servidor
   Future<void> _obtenerUsuarios() async {
-    final String url = "https://tu-servidor.com/api/admin/usuaris"; // Cambiar por la URL real
+    final String url = "https://imagia3.com/api/admin/usuaris"; 
 
     try {
       final response = await http.get(
         Uri.parse(url),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${widget.token}', // Usamos el token para autenticación
+          'Authorization': 'Bearer ${widget.token}', 
         },
       );
 
@@ -104,7 +104,7 @@ class _AutenticationPageState extends State<AutenticationPage> {
         centerTitle: true,
       ),
       body: _loading
-          ? Center(child: CircularProgressIndicator())
+          ? Center(child: SizedBox()) // Eliminamos el CircularProgressIndicator
           : _error.isNotEmpty
               ? Center(
                   child: Text(_error, style: TextStyle(color: Colors.red)),
@@ -128,7 +128,7 @@ class _AutenticationPageState extends State<AutenticationPage> {
                         }).toList(),
                         onChanged: (nuevoPlan) {
                           if (nuevoPlan != null) {
-                            _cambiarPlan(usuario['id'], nuevoPlan); // Cambiar plan del usuario
+                            _cambiarPlan(usuario['id'], nuevoPlan); 
                           }
                         },
                       ),
