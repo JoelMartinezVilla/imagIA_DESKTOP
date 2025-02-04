@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:convert'; 
 import 'dart:io'; 
 import 'package:http/http.dart' as http; 
-import 'autentication.dart'; // Importar la nueva pantalla
+import 'autentication.dart';
 
 void main() {
   runApp(MyApp());
@@ -34,6 +34,7 @@ class _PantallaInicioConLogicaState extends State<PantallaInicioConLogica> {
   final TextEditingController _urlController = TextEditingController();
   final TextEditingController _usuarioController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  String? _token; // Para guardar el token obtenido
 
   @override
   void initState() {
@@ -49,8 +50,9 @@ class _PantallaInicioConLogicaState extends State<PantallaInicioConLogica> {
   Future<void> _guardarDades() async {
     final File file = await _getLocalFile();
     Map<String, dynamic> datos = {
-      'urls': [_urlController.text], 
-      'usuarios': [_usuarioController.text] 
+      'urls': [_urlController.text],
+      'usuarios': [_usuarioController.text],
+      'token': _token // Guardar también el token
     };
 
     try {
@@ -73,6 +75,7 @@ class _PantallaInicioConLogicaState extends State<PantallaInicioConLogica> {
           setState(() {
             _urlController.text = datos['urls'].isNotEmpty ? datos['urls'].last : '';
             _usuarioController.text = datos['usuarios'].isNotEmpty ? datos['usuarios'].last : '';
+            _token = datos['token'] ?? ''; // Cargar el token si existe
           });
         }
       }
@@ -82,7 +85,7 @@ class _PantallaInicioConLogicaState extends State<PantallaInicioConLogica> {
   }
 
   Future<void> _realizarSolicitudDeLogin() async {
-    final url = _urlController.text.trim(); 
+    final url = _urlController.text.trim();
     final usuario = _usuarioController.text.trim();
     final password = _passwordController.text.trim();
 
@@ -92,28 +95,38 @@ class _PantallaInicioConLogicaState extends State<PantallaInicioConLogica> {
     }
 
     try {
-      final uri = Uri.parse('$url/api/usuaris/registrar');
+      final uri = Uri.parse('$url/api/admin/usuaris/login');
       final response = await http.post(
         uri,
         headers: {
           'Content-Type': 'application/json',
         },
         body: jsonEncode({
-          'usuario': usuario,
-          'password': password,
+          'email': usuario,
+          'contrasenya': password,
         }),
       );
 
       if (response.statusCode == 200) {
+        final body = jsonDecode(response.body);
+
+        // Asume que el token viene en el campo "token" de la respuesta del servidor
+        _token = body['token'];
+
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('Inicio de sesión exitoso'),
         ));
         print('Respuesta del servidor: ${response.body}');
 
-        // Navegar a la pantalla de autenticación
+        // Guardar los datos junto con el token
+        _guardarDades();
+
+        // Navegar a la pantalla de autenticación, pasando el token como argumento
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => AutenticationPage()), // Redirigir a la pantalla de autenticación
+          MaterialPageRoute(
+            builder: (context) => AutenticationPage(token: _token!), // Aquí pasamos el token
+          ),
         );
       } else {
         _mostrarMensajeError('Error en la solicitud: ${response.statusCode}');
@@ -133,7 +146,6 @@ class _PantallaInicioConLogicaState extends State<PantallaInicioConLogica> {
     } else if (_passwordController.text.isEmpty) {
       _mostrarMensajeError('Falta la contraseña');
     } else {
-      _guardarDades();
       _realizarSolicitudDeLogin();
     }
   }
@@ -185,7 +197,7 @@ class _PantallaInicioConLogicaState extends State<PantallaInicioConLogica> {
                   controller: _usuarioController,
                   decoration: InputDecoration(
                     border: OutlineInputBorder(),
-                    labelText: 'Usuario',
+                    labelText: 'Email',
                     prefixIcon: Icon(Icons.person),
                   ),
                 ),
@@ -197,7 +209,7 @@ class _PantallaInicioConLogicaState extends State<PantallaInicioConLogica> {
                   controller: _passwordController,
                   decoration: InputDecoration(
                     border: OutlineInputBorder(),
-                    labelText: 'Contraseña',
+                    labelText: 'Contrasenya',
                     prefixIcon: Icon(Icons.lock),
                   ),
                   obscureText: true,
