@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'dart:convert'; 
-import 'dart:io'; 
-import 'package:http/http.dart' as http; 
+import 'dart:convert';
+import 'dart:io';
+import 'package:http/http.dart' as http;
 import 'autentication.dart'; // Importa la página de usuarios después de autenticación.
 
 void main() {
@@ -74,8 +74,10 @@ class _PantallaInicioConLogicaState extends State<PantallaInicioConLogica> {
 
         if (datos.isNotEmpty) {
           setState(() {
-            _urlController.text = datos['urls'].isNotEmpty ? datos['urls'].last : '';
-            _usuarioController.text = datos['usuarios'].isNotEmpty ? datos['usuarios'].last : '';
+            _urlController.text =
+                datos['urls'].isNotEmpty ? datos['urls'].last : '';
+            _usuarioController.text =
+                datos['usuarios'].isNotEmpty ? datos['usuarios'].last : '';
             _token = datos['token'] ?? '';
           });
         }
@@ -111,8 +113,8 @@ class _PantallaInicioConLogicaState extends State<PantallaInicioConLogica> {
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body);
 
-        if (body.containsKey('token')) {
-          _token = body['token'];
+        if (body.containsKey('apiToken')) {
+          _token = body['apiToken'];
 
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text('Inicio de sesión exitoso'),
@@ -158,7 +160,8 @@ class _PantallaInicioConLogicaState extends State<PantallaInicioConLogica> {
       appBar: AppBar(
         backgroundColor: Colors.blue[800],
         centerTitle: true,
-        title: Text('IMAGIA3 DESKTOP',
+        title: Text(
+          'IMAGIA3 DESKTOP',
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
