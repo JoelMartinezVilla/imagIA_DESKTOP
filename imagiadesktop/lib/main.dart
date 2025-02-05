@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:convert'; 
 import 'dart:io'; 
 import 'package:http/http.dart' as http; 
-import 'autentication.dart';
+import 'autentication.dart'; // Importa la página de usuarios después de autenticación.
 
 void main() {
   runApp(MyApp());
@@ -34,7 +34,7 @@ class _PantallaInicioConLogicaState extends State<PantallaInicioConLogica> {
   final TextEditingController _urlController = TextEditingController();
   final TextEditingController _usuarioController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  String? _token; // Para guardar el token obtenido
+  String? _token;
 
   @override
   void initState() {
@@ -52,7 +52,8 @@ class _PantallaInicioConLogicaState extends State<PantallaInicioConLogica> {
     Map<String, dynamic> datos = {
       'urls': [_urlController.text],
       'usuarios': [_usuarioController.text],
-      'token': _token // Guardar también el token
+      // Guardamos el token solo si no es null
+      'token': _token ?? '',
     };
 
     try {
@@ -75,7 +76,7 @@ class _PantallaInicioConLogicaState extends State<PantallaInicioConLogica> {
           setState(() {
             _urlController.text = datos['urls'].isNotEmpty ? datos['urls'].last : '';
             _usuarioController.text = datos['usuarios'].isNotEmpty ? datos['usuarios'].last : '';
-            _token = datos['token'] ?? ''; // Cargar el token si existe
+            _token = datos['token'] ?? '';
           });
         }
       }
@@ -110,24 +111,30 @@ class _PantallaInicioConLogicaState extends State<PantallaInicioConLogica> {
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body);
 
-        // Asume que el token viene en el campo "token" de la respuesta del servidor
-        _token = body['token'];
+        if (body.containsKey('token')) {
+          _token = body['token'];
 
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Inicio de sesión exitoso'),
-        ));
-        print('Respuesta del servidor: ${response.body}');
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Inicio de sesión exitoso'),
+          ));
+          print('Respuesta del servidor: ${response.body}');
 
-        // Guardar los datos junto con el token
-        _guardarDades();
+          // Solo guardamos el token si no es null o vacío
+          if (_token != null && _token!.isNotEmpty) {
+            _guardarDades(); // Guardar los datos
 
-        // Navegar a la pantalla de autenticación, pasando el token como argumento
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => AutenticationPage(token: _token!), // Aquí pasamos el token
-          ),
-        );
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => AutenticationPage(token: _token!),
+              ),
+            );
+          } else {
+            _mostrarMensajeError('No se ha recibido un token');
+          }
+        } else {
+          _mostrarMensajeError('No se ha recibido un token');
+        }
       } else {
         _mostrarMensajeError('Error en la solicitud: ${response.statusCode}');
         print('Error en la solicitud: ${response.statusCode}');
@@ -135,18 +142,6 @@ class _PantallaInicioConLogicaState extends State<PantallaInicioConLogica> {
     } catch (e) {
       _mostrarMensajeError('Error de conexión: $e');
       print('Error de conexión: $e');
-    }
-  }
-
-  void _validarYGuardarDatos() {
-    if (_urlController.text.isEmpty) {
-      _mostrarMensajeError('Falta la URL del servidor');
-    } else if (_usuarioController.text.isEmpty) {
-      _mostrarMensajeError('Falta el usuario');
-    } else if (_passwordController.text.isEmpty) {
-      _mostrarMensajeError('Falta la contraseña');
-    } else {
-      _realizarSolicitudDeLogin();
     }
   }
 
@@ -163,8 +158,7 @@ class _PantallaInicioConLogicaState extends State<PantallaInicioConLogica> {
       appBar: AppBar(
         backgroundColor: Colors.blue[800],
         centerTitle: true,
-        title: Text(
-          'IMAGIA3 DESKTOP',
+        title: Text('IMAGIA3 DESKTOP',
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
@@ -217,7 +211,7 @@ class _PantallaInicioConLogicaState extends State<PantallaInicioConLogica> {
               ),
               SizedBox(height: 24.0),
               ElevatedButton(
-                onPressed: _validarYGuardarDatos,
+                onPressed: _realizarSolicitudDeLogin,
                 child: Text('Acceder'),
               ),
             ],
