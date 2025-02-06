@@ -199,8 +199,7 @@ class _AutenticationPageState extends State<AutenticationPage> {
                               // Desplegable para cambiar el plan
                               Row(
                                 children: [
-                                  Text(
-                                    'Cambiar plan: ',
+                                  Text('Cambiar plan: ',
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 16.0,
@@ -230,8 +229,7 @@ class _AutenticationPageState extends State<AutenticationPage> {
                       );
                     },
                   )
-                : Center(
-                    child: Text('Cargando usuarios...'),
+                : Center( child: Text('Cargando usuarios...'),
                   ),
       ),
     );
