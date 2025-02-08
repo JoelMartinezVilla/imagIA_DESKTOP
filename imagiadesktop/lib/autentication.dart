@@ -23,10 +23,11 @@ class _AutenticationPageState extends State<AutenticationPage> with SingleTicker
     super.initState();
     token = widget.token;
     _tabController = TabController(length: 2, vsync: this);
+    _tabController!.addListener(_tabChanged); // Listener para cuando cambie de pestaña
     _obtenerUsuariosDesdeAPI();
   }
 
-  /// Función auxiliar para normalizar el valor del plan.
+  /// Devuelve el plan formateado (Free o Premium).
   String normalizePlan(dynamic plan) {
     if (plan == null) return 'Free';
     String p = plan.toString().toLowerCase();
@@ -75,10 +76,15 @@ class _AutenticationPageState extends State<AutenticationPage> with SingleTicker
     }
   }
 
-  /// Obtiene los logs de un usuario desde la API.
-  Future<void> _obtenerLogsDesdeAPI(int usuarioId) async {
-    final url = 'https://imagia3.ieti.site/api/admin/logs/$usuarioId';
-    final uri = Uri.parse(url);
+  /// Obtiene los logs desde la API (global, sin usuario específico)  
+  /// Se usan parámetros de consulta opcionales: 'contenido' y 'tag' (aquí se dejan como null).
+  Future<void> _obtenerLogsDesdeAPI({String? contenido, String? tag}) async {
+    print("Obteniendo logs con parámetros: contenido: $contenido, tag: $tag");
+    final url = 'https://imagia3.ieti.site/api/admin/logs';
+    final uri = Uri.parse(url).replace(queryParameters: {
+      'contenido': contenido,
+      'tag': tag,
+    });
 
     try {
       final response = await http.get(
@@ -88,18 +94,18 @@ class _AutenticationPageState extends State<AutenticationPage> with SingleTicker
           'Authorization': 'Bearer $token',
         },
       );
+      print('Respuesta del servidor: ${response.body}');
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = jsonDecode(response.body);
-        if (data.containsKey('logs')) {
+        if (data.containsKey('data')) {
           setState(() {
-            _logs = data['logs'];
-            _selectedUserId = usuarioId;
-            _tabController!.animateTo(1); // Cambia a la pestaña de logs
+            _logs = data['data'];
+            _tabController?.animateTo(1); // Cambiar a la pestaña de logs
           });
         } else {
           setState(() {
-            _error = 'La respuesta no contiene logs';
+            _error = 'No se encontraron logs para los parámetros dados.';
           });
         }
       } else {
@@ -114,7 +120,7 @@ class _AutenticationPageState extends State<AutenticationPage> with SingleTicker
     }
   }
 
-  /// Actualiza el plan de un usuario enviando los campos que espera el servidor.
+  /// Actualiza el plan del usuario usando la ruta anterior.
   Future<void> _actualizarPlanUsuario(int usuarioId, String nuevoPlan) async {
     var usuario = _usuarios.firstWhere((u) => u['id'] == usuarioId, orElse: () => null);
     if (usuario == null) {
@@ -172,6 +178,25 @@ class _AutenticationPageState extends State<AutenticationPage> with SingleTicker
     }
   }
 
+  /// Método que se llama cuando cambia la pestaña.
+  /// (En este ejemplo, cuando se selecciona la pestaña de Logs se hace la petición de logs)
+  void _tabChanged() {
+    if (_tabController!.index == 1) {
+      _obtenerLogsDesdeAPI(); // Obtiene los logs (globales) cuando se selecciona la pestaña de logs
+    }
+  }
+
+  /// Función para formatear la fecha del timestamp recibido.
+  String formatTimestamp(String timestamp) {
+    try {
+      DateTime dt = DateTime.parse(timestamp).toLocal();
+      return "${dt.year}-${dt.month.toString().padLeft(2,'0')}-${dt.day.toString().padLeft(2,'0')} "
+             "${dt.hour.toString().padLeft(2,'0')}:${dt.minute.toString().padLeft(2,'0')}:${dt.second.toString().padLeft(2,'0')}";
+    } catch (e) {
+      return timestamp;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -189,24 +214,22 @@ class _AutenticationPageState extends State<AutenticationPage> with SingleTicker
         bottom: TabBar(
           controller: _tabController,
           tabs: [
-            Tab(text: 'Usuarios'),
-            Tab(text: 'Logs'),
+            Tab(child: Text('Usuarios', style: TextStyle(color: Colors.white))),
+            Tab(child: Text('Logs', style: TextStyle(color: Colors.white))),
           ],
         ),
       ),
       body: TabBarView(
         controller: _tabController,
         children: [
+          // Pestaña de Usuarios
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: _error != null
                 ? Center(
                     child: Text(
                       _error!,
-                      style: TextStyle(
-                        color: Colors.red,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
                     ),
                   )
                 : _usuarios.isNotEmpty
@@ -224,10 +247,7 @@ class _AutenticationPageState extends State<AutenticationPage> with SingleTicker
                                 children: [
                                   Text(
                                     'Nickname: ${usuario['nickname'] ?? 'No disponible'}',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16.0,
-                                    ),
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16.0),
                                   ),
                                   SizedBox(height: 4),
                                   Text(
@@ -239,38 +259,25 @@ class _AutenticationPageState extends State<AutenticationPage> with SingleTicker
                                     'Plan: $currentPlan',
                                     style: TextStyle(fontSize: 16.0),
                                   ),
-                                  Row(
-                                    children: [
-                                      Text(
-                                        'Cambiar plan: ',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16.0,
-                                        ),
-                                      ),
-                                      DropdownButton<String>(
-                                        value: currentPlan,
-                                        onChanged: (String? newPlan) {
-                                          if (newPlan != null &&
-                                              newPlan != currentPlan) {
-                                            _actualizarPlanUsuario(
-                                                usuario['id'], newPlan);
-                                          }
-                                        },
-                                        items: <String>['Free', 'Premium']
-                                            .map<DropdownMenuItem<String>>((String value) {
-                                          return DropdownMenuItem<String>(
-                                            value: value,
-                                            child: Text(value),
-                                          );
-                                        }).toList(),
-                                      ),
-                                    ],
+                                  // Dropdown para cambiar el plan (Free o Premium)
+                                  DropdownButton<String>(
+                                    value: currentPlan,
+                                    onChanged: (String? newPlan) {
+                                      if (newPlan != null && newPlan != currentPlan) {
+                                        _actualizarPlanUsuario(usuario['id'], newPlan);
+                                      }
+                                    },
+                                    items: <String>['Free', 'Premium']
+                                        .map((String value) => DropdownMenuItem<String>(
+                                              value: value,
+                                              child: Text(value),
+                                            ))
+                                        .toList(),
                                   ),
-                                  SizedBox(height: 8),
+                                  // Botón para ver logs
                                   ElevatedButton(
                                     onPressed: () {
-                                      _obtenerLogsDesdeAPI(usuario['id']);
+                                      _obtenerLogsDesdeAPI(); // Obtiene los logs globales
                                     },
                                     child: Text('Ver Logs'),
                                   ),
@@ -280,11 +287,9 @@ class _AutenticationPageState extends State<AutenticationPage> with SingleTicker
                           );
                         },
                       )
-                    : Center(
-                        child: Text('Cargando usuarios...'),
-                      ),
+                    : Center(child: Text('Cargando usuarios...')),
           ),
-          // Pestaña de logs
+          // Pestaña de Logs
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: _logs.isNotEmpty
@@ -292,17 +297,28 @@ class _AutenticationPageState extends State<AutenticationPage> with SingleTicker
                     itemCount: _logs.length,
                     itemBuilder: (context, index) {
                       var log = _logs[index];
+                      // Usamos la función formatTimestamp para mostrar la fecha de forma legible.
+                      String fechaFormateada = log['timestamp'] != null ? formatTimestamp(log['timestamp']) : 'No disponible';
                       return Card(
                         margin: EdgeInsets.symmetric(vertical: 8.0),
                         child: ListTile(
-                          title: Text('Acción: ${log['accion'] ?? 'No disponible'}'),
-                          subtitle: Text('Fecha: ${log['fecha'] ?? 'No disponible'}'),
+                          title: Text(
+                            'Acción: ${log['message'] ?? 'No disponible'}',
+                            style: TextStyle(color: Colors.black),
+                          ),
+                          subtitle: Text(
+                            'Fecha: $fechaFormateada',
+                            style: TextStyle(color: Colors.black),
+                          ),
                         ),
                       );
                     },
                   )
                 : Center(
-                    child: Text('No hay logs disponibles.'),
+                    child: Text(
+                      'No hay logs disponibles.',
+                      style: TextStyle(color: const Color.fromARGB(255, 230, 0, 0)),
+                    ),
                   ),
           ),
         ],
