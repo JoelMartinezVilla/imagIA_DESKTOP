@@ -26,14 +26,14 @@ class _AutenticationPageState extends State<AutenticationPage>
   List<LogStat> _logStats = []; // Datos procesados para el gráfico de barras.
   String? _error;
   TabController? _tabController;
-  int? _selectedUserId;
+  int? _selectedUserId; // Para la pestaña de Cuotas
 
   @override
   void initState() {
     super.initState();
     token = widget.token;
-    // Ahora tenemos 3 pestañas: Usuarios, Logs y Estadísticas.
-    _tabController = TabController(length: 3, vsync: this);
+    // Ahora tenemos 4 pestañas: Usuarios, Logs, Estadísticas y Cuotas.
+    _tabController = TabController(length: 4, vsync: this);
     _tabController!.addListener(_tabChanged);
     _obtenerUsuariosDesdeAPI();
   }
@@ -51,7 +51,6 @@ class _AutenticationPageState extends State<AutenticationPage>
   Future<void> _obtenerUsuariosDesdeAPI() async {
     final url = 'https://imagia3.ieti.site/api/admin/usuaris';
     final uri = Uri.parse(url);
-
     try {
       final response = await http.get(
         uri,
@@ -60,7 +59,6 @@ class _AutenticationPageState extends State<AutenticationPage>
           'Authorization': 'Bearer $token',
         },
       );
-
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = jsonDecode(response.body);
         if (data.containsKey('data')) {
@@ -95,7 +93,6 @@ class _AutenticationPageState extends State<AutenticationPage>
       'contenido': contenido,
       'tag': tag,
     });
-
     try {
       final response = await http.get(
         uri,
@@ -105,7 +102,6 @@ class _AutenticationPageState extends State<AutenticationPage>
         },
       );
       print('Respuesta del servidor: ${response.body}');
-
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = jsonDecode(response.body);
         if (data.containsKey('data')) {
@@ -161,10 +157,8 @@ class _AutenticationPageState extends State<AutenticationPage>
       ));
       return;
     }
-
     final url = 'https://imagia3.ieti.site/api/admin/usuaris/pla/actualitzar';
     final uri = Uri.parse(url);
-
     try {
       final response = await http.post(
         uri,
@@ -179,7 +173,6 @@ class _AutenticationPageState extends State<AutenticationPage>
           'pla': nuevoPlan,
         }),
       );
-
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['status'] == 'OK') {
@@ -227,6 +220,144 @@ class _AutenticationPageState extends State<AutenticationPage>
     }
   }
 
+  /// Función para obtener la cuota de un usuario desde la API.
+  /// Se envían como query parameters 'telefon', 'nickname' y 'email'.
+  Future<dynamic> _obtenerCuotaPorUsuario(int usuarioId) async {
+    final usuario = _usuarios.firstWhere((u) => u['id'] == usuarioId, orElse: () => null);
+    if (usuario == null) throw Exception("Usuario no encontrado");
+    final url = 'https://imagia3.ieti.site/api/admin/usuaris/quota';
+    final uri = Uri.parse(url).replace(queryParameters: {
+      'telefon': usuario['telefon']?.toString() ?? '',
+      'nickname': usuario['nickname'] ?? '',
+      'email': usuario['email'] ?? '',
+    });
+    final response = await http.get(
+      uri,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      if (data['status'] == 'OK') {
+        return data['data'];
+      } else {
+        throw Exception("Error: ${data['message']}");
+      }
+    } else {
+      throw Exception("Error en la petición: ${response.statusCode}");
+    }
+  }
+
+  /// Función para actualizar la cuota de un usuario.
+  Future<void> _actualizarCuotaUsuario(int usuarioId, int limit, int disponible) async {
+    final usuario = _usuarios.firstWhere((u) => u['id'] == usuarioId, orElse: () => null);
+    if (usuario == null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Usuario no encontrado'),
+        backgroundColor: Colors.red,
+      ));
+      return;
+    }
+    final url = 'https://imagia3.ieti.site/api/admin/usuaris/quota/actualitzar';
+    final uri = Uri.parse(url);
+    try {
+      final response = await http.post(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'telefon': usuario['telefon'],
+          'nickname': usuario['nickname'],
+          'email': usuario['email'],
+          'limit': limit,
+          'disponible': disponible,
+        }),
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['status'] == 'OK') {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Cuota actualizada con éxito'),
+          ));
+          // Forzar la actualización de la cuota consultando nuevamente.
+          setState(() {});
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Error al actualizar cuota: ${data['message']}'),
+            backgroundColor: Colors.red,
+          ));
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Error al comunicarse con el servidor'),
+          backgroundColor: Colors.red,
+        ));
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Error de conexión: $e'),
+        backgroundColor: Colors.red,
+      ));
+    }
+  }
+
+  /// Muestra un diálogo para actualizar la cuota del usuario seleccionado.
+  void _mostrarDialogActualizarCuota(int usuarioId) {
+    final TextEditingController limitController = TextEditingController();
+    final TextEditingController disponibleController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text("Actualizar cuota"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: limitController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(labelText: "Cuota Total"),
+              ),
+              TextField(
+                controller: disponibleController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(labelText: "Cuota Disponible"),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text("Cancelar"),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                // Parsear los valores ingresados.
+                int? limit = int.tryParse(limitController.text);
+                int? disponible = int.tryParse(disponibleController.text);
+                if (limit == null || disponible == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text("Por favor, ingresa valores numéricos válidos"),
+                    backgroundColor: Colors.red,
+                  ));
+                  return;
+                }
+                await _actualizarCuotaUsuario(usuarioId, limit, disponible);
+                Navigator.of(context).pop();
+              },
+              child: Text("Actualizar"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -247,6 +378,7 @@ class _AutenticationPageState extends State<AutenticationPage>
             Tab(child: Text('Usuarios', style: TextStyle(color: Colors.white))),
             Tab(child: Text('Logs', style: TextStyle(color: Colors.white))),
             Tab(child: Text('Estadísticas', style: TextStyle(color: Colors.white))),
+            Tab(child: Text('Cuotas', style: TextStyle(color: Colors.white))), // Pestaña de Cuotas
           ],
         ),
       ),
@@ -260,8 +392,7 @@ class _AutenticationPageState extends State<AutenticationPage>
                 ? Center(
                     child: Text(
                       _error!,
-                      style: TextStyle(
-                          color: Colors.red, fontWeight: FontWeight.bold),
+                      style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
                     ),
                   )
                 : _usuarios.isNotEmpty
@@ -279,9 +410,7 @@ class _AutenticationPageState extends State<AutenticationPage>
                                 children: [
                                   Text(
                                     'Nickname: ${usuario['nickname'] ?? 'No disponible'}',
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16.0),
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16.0),
                                   ),
                                   SizedBox(height: 4),
                                   Text(
@@ -297,14 +426,12 @@ class _AutenticationPageState extends State<AutenticationPage>
                                   DropdownButton<String>(
                                     value: currentPlan,
                                     onChanged: (String? newPlan) {
-                                      if (newPlan != null &&
-                                          newPlan != currentPlan) {
+                                      if (newPlan != null && newPlan != currentPlan) {
                                         _actualizarPlanUsuario(usuario['id'], newPlan);
                                       }
                                     },
                                     items: <String>['Free', 'Premium']
-                                        .map((String value) =>
-                                            DropdownMenuItem<String>(
+                                        .map((String value) => DropdownMenuItem<String>(
                                               value: value,
                                               child: Text(value),
                                             ))
@@ -345,9 +472,7 @@ class _AutenticationPageState extends State<AutenticationPage>
                             children: [
                               Text(
                                 'ID: ${log['id'] ?? 'No disponible'}',
-                                style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16.0),
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16.0),
                               ),
                               SizedBox(height: 4),
                               Text(
@@ -373,9 +498,7 @@ class _AutenticationPageState extends State<AutenticationPage>
                 : Center(
                     child: Text(
                       'No hay logs disponibles.',
-                      style: TextStyle(
-                          color: Color.fromARGB(255, 230, 0, 0),
-                          fontWeight: FontWeight.bold),
+                      style: TextStyle(color: Color.fromARGB(255, 230, 0, 0), fontWeight: FontWeight.bold),
                     ),
                   ),
           ),
@@ -389,9 +512,208 @@ class _AutenticationPageState extends State<AutenticationPage>
                   )
                 : Center(child: Text('Cargando datos del gráfico...')),
           ),
+          // Pestaña de Cuotas.
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: _usuarios.isNotEmpty
+                ? _buildCuotasTab()
+                : Center(child: Text('Cargando usuarios para consultar cuotas...')),
+          ),
         ],
       ),
     );
+  }
+}
+
+/// Widget para construir la pestaña de Cuotas.
+Widget _buildCuotasTab() {
+  return Builder(
+    builder: (context) {
+      final _AutenticationPageState state =
+          context.findAncestorStateOfType<_AutenticationPageState>()!;
+      return Column(
+        children: [
+          DropdownButton<int>(
+            hint: Text("Selecciona un usuario"),
+            value: state._selectedUserId,
+            onChanged: (int? newId) {
+              state.setState(() {
+                state._selectedUserId = newId;
+              });
+            },
+            items: state._usuarios.map((user) {
+              return DropdownMenuItem<int>(
+                value: user['id'],
+                child: Text(user['nickname'] ?? user['telefon'] ?? 'Sin nombre'),
+              );
+            }).toList(),
+          ),
+          SizedBox(height: 20),
+          state._selectedUserId != null
+              ? FutureBuilder(
+                  future: state._obtenerCuotaPorUsuario(state._selectedUserId!),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return Center(child: CircularProgressIndicator());
+                    } else if (snapshot.hasError) {
+                      return Center(
+                          child: Text(
+                        "Error: ${snapshot.error}",
+                        style: TextStyle(color: Colors.red),
+                      ));
+                    } else if (snapshot.hasData) {
+                      final cuota = snapshot.data;
+                      return Column(
+                        children: [
+                          Card(
+                            margin: EdgeInsets.symmetric(vertical: 8.0),
+                            child: Padding(
+                              padding: const EdgeInsets.all(12.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Cuota Total: ${cuota['quota_total']}',
+                                    style: TextStyle(fontSize: 16.0, fontWeight: FontWeight.bold),
+                                  ),
+                                  SizedBox(height: 4),
+                                  Text(
+                                    'Cuota Disponible: ${cuota['quota_disponible']}',
+                                    style: TextStyle(fontSize: 16.0),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          // Botón para modificar la cuota
+                          ElevatedButton(
+                            onPressed: () {
+                              state._mostrarDialogActualizarCuota(state._selectedUserId!);
+                            },
+                            child: Text("Modificar cuota"),
+                          ),
+                        ],
+                      );
+                    } else {
+                      return Center(child: Text("No hay datos"));
+                    }
+                  },
+                )
+              : Center(child: Text("Selecciona un usuario para ver su cuota")),
+        ],
+      );
+    },
+  );
+}
+
+/// Función para mostrar un diálogo que permita actualizar la cuota del usuario.
+extension on _AutenticationPageState {
+  void _mostrarDialogActualizarCuota(int usuarioId) {
+    final TextEditingController limitController = TextEditingController();
+    final TextEditingController disponibleController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text("Actualizar cuota"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: limitController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(labelText: "Cuota Total"),
+              ),
+              TextField(
+                controller: disponibleController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(labelText: "Cuota Disponible"),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text("Cancelar"),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                int? limit = int.tryParse(limitController.text);
+                int? disponible = int.tryParse(disponibleController.text);
+                if (limit == null || disponible == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text("Por favor, ingresa valores numéricos válidos"),
+                    backgroundColor: Colors.red,
+                  ));
+                  return;
+                }
+                await _actualizarCuotaUsuario(usuarioId, limit, disponible);
+                Navigator.of(context).pop();
+                // Opcional: Volver a recargar la cuota para actualizar la vista.
+                setState(() {});
+              },
+              child: Text("Actualizar"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// Función para actualizar la cuota de un usuario.
+Future<void> _actualizarCuotaUsuario(int usuarioId, int limit, int disponible) async {
+  final _AutenticationPageState state =
+      (await WidgetsBinding.instance!.renderViewElement)!.findAncestorStateOfType<_AutenticationPageState>()!;
+  final usuario = state._usuarios.firstWhere((u) => u['id'] == usuarioId, orElse: () => null);
+  if (usuario == null) {
+    ScaffoldMessenger.of(state.context).showSnackBar(SnackBar(
+      content: Text('Usuario no encontrado'),
+      backgroundColor: Colors.red,
+    ));
+    return;
+  }
+  final url = 'https://imagia3.ieti.site/api/admin/usuaris/quota/actualitzar';
+  final uri = Uri.parse(url);
+  try {
+    final response = await http.post(
+      uri,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${state.token}',
+      },
+      body: jsonEncode({
+        'telefon': usuario['telefon'],
+        'nickname': usuario['nickname'],
+        'email': usuario['email'],
+        'limit': limit,
+        'disponible': disponible,
+      }),
+    );
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      if (data['status'] == 'OK') {
+        ScaffoldMessenger.of(state.context).showSnackBar(SnackBar(
+          content: Text('Cuota actualizada con éxito'),
+        ));
+        state.setState(() {}); // Actualiza la vista
+      } else {
+        ScaffoldMessenger.of(state.context).showSnackBar(SnackBar(
+          content: Text('Error al actualizar cuota: ${data['message']}'),
+          backgroundColor: Colors.red,
+        ));
+      }
+    } else {
+      ScaffoldMessenger.of(state.context).showSnackBar(SnackBar(
+        content: Text('Error al comunicarse con el servidor'),
+        backgroundColor: Colors.red,
+      ));
+    }
+  } catch (e) {
+    ScaffoldMessenger.of(state.context).showSnackBar(SnackBar(
+      content: Text('Error de conexión: $e'),
+      backgroundColor: Colors.red,
+    ));
   }
 }
 
@@ -403,53 +725,31 @@ class StatsChartPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     if (stats.isEmpty) return;
-
-    final Paint barPaint = Paint()
-      ..style = PaintingStyle.fill;
-
+    final Paint barPaint = Paint()..style = PaintingStyle.fill;
     // Colores de las barras por tag.
-    List<Color> colors = [
-      Colors.blue, Colors.green, Colors.red, Colors.orange, Colors.purple
-    ];
-
+    List<Color> colors = [Colors.blue, Colors.green, Colors.red, Colors.orange, Colors.purple];
     // Se reserva parte inferior para los nombres de los tags.
     final double bottomMargin = size.height * 0.3;
     final double chartHeight = size.height - bottomMargin;
     final double barWidth = size.width / (stats.length * 2);
-    final double maxCount =
-        stats.map((s) => s.count).reduce((a, b) => max(a, b)).toDouble();
-
-    final textPainter = TextPainter(
-        textAlign: TextAlign.center, textDirection: TextDirection.ltr);
-
+    final double maxCount = stats.map((s) => s.count).reduce((a, b) => max(a, b)).toDouble();
+    final textPainter = TextPainter(textAlign: TextAlign.center, textDirection: TextDirection.ltr);
     for (int i = 0; i < stats.length; i++) {
       final stat = stats[i];
-      // Calculamos la posición horizontal de cada barra.
       final double left = i * 2 * barWidth + barWidth / 2;
       final double right = left + barWidth;
-      final double barHeight =
-          (stat.count / maxCount) * chartHeight; // Altura proporcional.
+      final double barHeight = (stat.count / maxCount) * chartHeight;
       final double top = chartHeight - barHeight;
       final Rect barRect = Rect.fromLTRB(left, top, right, chartHeight);
-
-      // Establecemos el color para la barra.
       barPaint.color = colors[i % colors.length];
       canvas.drawRect(barRect, barPaint);
-
-      // Dibujar el número (cantidad de logs) sobre cada barra.
-      final countTextSpan = TextSpan(
-          text: stat.count.toString(),
-          style: TextStyle(color: Colors.black, fontSize: 12));
+      final countTextSpan = TextSpan(text: stat.count.toString(), style: TextStyle(color: Colors.black, fontSize: 12));
       textPainter.text = countTextSpan;
       textPainter.layout(minWidth: 0, maxWidth: barWidth);
       final double countX = left + (barWidth - textPainter.width) / 2;
       final double countY = top - textPainter.height - 2;
       textPainter.paint(canvas, Offset(countX, countY));
-
-      // Dibujar el tag debajo de cada barra.
-      final tagTextSpan = TextSpan(
-          text: stat.tag,
-          style: TextStyle(color: Colors.black, fontSize: 10));
+      final tagTextSpan = TextSpan(text: stat.tag, style: TextStyle(color: Colors.black, fontSize: 10));
       textPainter.text = tagTextSpan;
       textPainter.layout(minWidth: 0, maxWidth: barWidth);
       final double tagX = left + (barWidth - textPainter.width) / 2;
@@ -459,7 +759,7 @@ class StatsChartPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) {
+  bool shouldRepaint(covariant StatsChartPainter oldDelegate) {
     return false;
   }
 }
