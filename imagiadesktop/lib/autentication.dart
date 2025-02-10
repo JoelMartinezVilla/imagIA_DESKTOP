@@ -1,6 +1,14 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
+import 'dart:math';
 import 'package:http/http.dart' as http;
+
+/// Clase para almacenar la información de cada tag y su cantidad de logs.
+class LogStat {
+  final String tag;
+  final int count;
+  LogStat({required this.tag, required this.count});
+}
 
 class AutenticationPage extends StatefulWidget {
   final String token;
@@ -10,10 +18,12 @@ class AutenticationPage extends StatefulWidget {
   _AutenticationPageState createState() => _AutenticationPageState();
 }
 
-class _AutenticationPageState extends State<AutenticationPage> with SingleTickerProviderStateMixin {
+class _AutenticationPageState extends State<AutenticationPage>
+    with SingleTickerProviderStateMixin {
   late String token;
   List<dynamic> _usuarios = [];
   List<dynamic> _logs = [];
+  List<LogStat> _logStats = []; // Datos procesados para el gráfico de barras.
   String? _error;
   TabController? _tabController;
   int? _selectedUserId;
@@ -22,8 +32,9 @@ class _AutenticationPageState extends State<AutenticationPage> with SingleTicker
   void initState() {
     super.initState();
     token = widget.token;
-    _tabController = TabController(length: 2, vsync: this);
-    _tabController!.addListener(_tabChanged); // Listener para cuando cambie de pestaña
+    // Ahora tenemos 3 pestañas: Usuarios, Logs y Estadísticas.
+    _tabController = TabController(length: 3, vsync: this);
+    _tabController!.addListener(_tabChanged);
     _obtenerUsuariosDesdeAPI();
   }
 
@@ -76,8 +87,7 @@ class _AutenticationPageState extends State<AutenticationPage> with SingleTicker
     }
   }
 
-  /// Obtiene los logs desde la API (global, sin usuario específico)  
-  /// Se usan parámetros de consulta opcionales: 'contenido' y 'tag' (aquí se dejan como null).
+  /// Obtiene los logs desde la API (global, sin usuario específico).
   Future<void> _obtenerLogsDesdeAPI({String? contenido, String? tag}) async {
     print("Obteniendo logs con parámetros: contenido: $contenido, tag: $tag");
     final url = 'https://imagia3.ieti.site/api/admin/logs';
@@ -101,8 +111,9 @@ class _AutenticationPageState extends State<AutenticationPage> with SingleTicker
         if (data.containsKey('data')) {
           setState(() {
             _logs = data['data'];
-            _tabController?.animateTo(1); // Cambiar a la pestaña de logs
           });
+          // Procesamos los logs para generar los datos del gráfico.
+          _procesarDatosParaStats();
         } else {
           setState(() {
             _error = 'No se encontraron logs para los parámetros dados.';
@@ -120,7 +131,27 @@ class _AutenticationPageState extends State<AutenticationPage> with SingleTicker
     }
   }
 
-  /// Actualiza el plan del usuario usando la ruta anterior.
+  /// Procesa los datos de _logs para obtener las estadísticas (cantidad de logs por tag).
+  void _procesarDatosParaStats() {
+    Map<String, int> logCountByTag = {};
+    for (var log in _logs) {
+      String tag = log['tag'] ?? 'Otros';
+      if (!logCountByTag.containsKey(tag)) {
+        logCountByTag[tag] = 0;
+      }
+      logCountByTag[tag] = logCountByTag[tag]! + 1;
+    }
+    List<LogStat> stats = logCountByTag.entries
+        .map((entry) => LogStat(tag: entry.key, count: entry.value))
+        .toList();
+    // Ordenamos alfabéticamente los tags.
+    stats.sort((a, b) => a.tag.compareTo(b.tag));
+    setState(() {
+      _logStats = stats;
+    });
+  }
+
+  /// Actualiza el plan del usuario usando la ruta y método (POST) original.
   Future<void> _actualizarPlanUsuario(int usuarioId, String nuevoPlan) async {
     var usuario = _usuarios.firstWhere((u) => u['id'] == usuarioId, orElse: () => null);
     if (usuario == null) {
@@ -178,20 +209,19 @@ class _AutenticationPageState extends State<AutenticationPage> with SingleTicker
     }
   }
 
-  /// Método que se llama cuando cambia la pestaña.
-  /// (En este ejemplo, cuando se selecciona la pestaña de Logs se hace la petición de logs)
+  /// Cada vez que se cambia de pestaña, si se va a Logs o Estadísticas se actualizan los logs.
   void _tabChanged() {
-    if (_tabController!.index == 1) {
-      _obtenerLogsDesdeAPI(); // Obtiene los logs (globales) cuando se selecciona la pestaña de logs
+    if (_tabController!.index == 1 || _tabController!.index == 2) {
+      _obtenerLogsDesdeAPI();
     }
   }
 
-  /// Función para formatear la fecha del timestamp recibido.
+  /// Función para formatear el timestamp recibido.
   String formatTimestamp(String timestamp) {
     try {
       DateTime dt = DateTime.parse(timestamp).toLocal();
-      return "${dt.year}-${dt.month.toString().padLeft(2,'0')}-${dt.day.toString().padLeft(2,'0')} "
-             "${dt.hour.toString().padLeft(2,'0')}:${dt.minute.toString().padLeft(2,'0')}:${dt.second.toString().padLeft(2,'0')}";
+      return "${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} "
+          "${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}:${dt.second.toString().padLeft(2, '0')}";
     } catch (e) {
       return timestamp;
     }
@@ -216,20 +246,22 @@ class _AutenticationPageState extends State<AutenticationPage> with SingleTicker
           tabs: [
             Tab(child: Text('Usuarios', style: TextStyle(color: Colors.white))),
             Tab(child: Text('Logs', style: TextStyle(color: Colors.white))),
+            Tab(child: Text('Estadísticas', style: TextStyle(color: Colors.white))),
           ],
         ),
       ),
       body: TabBarView(
         controller: _tabController,
         children: [
-          // Pestaña de Usuarios
+          // Pestaña de Usuarios.
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: _error != null
                 ? Center(
                     child: Text(
                       _error!,
-                      style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                          color: Colors.red, fontWeight: FontWeight.bold),
                     ),
                   )
                 : _usuarios.isNotEmpty
@@ -247,7 +279,9 @@ class _AutenticationPageState extends State<AutenticationPage> with SingleTicker
                                 children: [
                                   Text(
                                     'Nickname: ${usuario['nickname'] ?? 'No disponible'}',
-                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16.0),
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16.0),
                                   ),
                                   SizedBox(height: 4),
                                   Text(
@@ -259,25 +293,27 @@ class _AutenticationPageState extends State<AutenticationPage> with SingleTicker
                                     'Plan: $currentPlan',
                                     style: TextStyle(fontSize: 16.0),
                                   ),
-                                  // Dropdown para cambiar el plan (Free o Premium)
+                                  // Dropdown para cambiar el plan (Free o Premium).
                                   DropdownButton<String>(
                                     value: currentPlan,
                                     onChanged: (String? newPlan) {
-                                      if (newPlan != null && newPlan != currentPlan) {
+                                      if (newPlan != null &&
+                                          newPlan != currentPlan) {
                                         _actualizarPlanUsuario(usuario['id'], newPlan);
                                       }
                                     },
                                     items: <String>['Free', 'Premium']
-                                        .map((String value) => DropdownMenuItem<String>(
+                                        .map((String value) =>
+                                            DropdownMenuItem<String>(
                                               value: value,
                                               child: Text(value),
                                             ))
                                         .toList(),
                                   ),
-                                  // Botón para ver logs
+                                  // Botón para ver logs.
                                   ElevatedButton(
                                     onPressed: () {
-                                      _obtenerLogsDesdeAPI(); // Obtiene los logs globales
+                                      _obtenerLogsDesdeAPI(); // Obtiene los logs globales.
                                     },
                                     child: Text('Ver Logs'),
                                   ),
@@ -289,61 +325,141 @@ class _AutenticationPageState extends State<AutenticationPage> with SingleTicker
                       )
                     : Center(child: Text('Cargando usuarios...')),
           ),
-          // Pestaña de Logs
+          // Pestaña de Logs.
           Padding(
-  padding: const EdgeInsets.all(16.0),
-  child: _logs.isNotEmpty
-      ? ListView.builder(
-          itemCount: _logs.length,
-          itemBuilder: (context, index) {
-            var log = _logs[index];
-            // Usamos la función formatTimestamp para mostrar la fecha de forma legible.
-            String fechaFormateada = log['timestamp'] != null ? formatTimestamp(log['timestamp']) : 'No disponible';
-            return Card(
-              margin: EdgeInsets.symmetric(vertical: 8.0),
-              child: Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Mostrando el ID del log
-                    Text(
-                      'ID: ${log['id'] ?? 'No disponible'}',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16.0),
+            padding: const EdgeInsets.all(16.0),
+            child: _logs.isNotEmpty
+                ? ListView.builder(
+                    itemCount: _logs.length,
+                    itemBuilder: (context, index) {
+                      var log = _logs[index];
+                      String fechaFormateada = log['timestamp'] != null
+                          ? formatTimestamp(log['timestamp'])
+                          : 'No disponible';
+                      return Card(
+                        margin: EdgeInsets.symmetric(vertical: 8.0),
+                        child: Padding(
+                          padding: const EdgeInsets.all(12.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'ID: ${log['id'] ?? 'No disponible'}',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16.0),
+                              ),
+                              SizedBox(height: 4),
+                              Text(
+                                'Tag: ${log['tag'] ?? 'No disponible'}',
+                                style: TextStyle(fontSize: 16.0),
+                              ),
+                              SizedBox(height: 4),
+                              Text(
+                                'Mensaje: ${log['mensaje'] ?? 'No disponible'}',
+                                style: TextStyle(fontSize: 16.0),
+                              ),
+                              SizedBox(height: 4),
+                              Text(
+                                'Fecha: $fechaFormateada',
+                                style: TextStyle(fontSize: 16.0),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  )
+                : Center(
+                    child: Text(
+                      'No hay logs disponibles.',
+                      style: TextStyle(
+                          color: Color.fromARGB(255, 230, 0, 0),
+                          fontWeight: FontWeight.bold),
                     ),
-                    SizedBox(height: 4),
-                    // Mostrando el Tag del log
-                    Text(
-                      'Tag: ${log['tag'] ?? 'No disponible'}',
-                      style: TextStyle(fontSize: 16.0),
-                    ),
-                    SizedBox(height: 4),
-                    // Mostrando el Mensaje del log
-                    Text(
-                      'Mensaje: ${log['mensaje'] ?? 'No disponible'}',
-                      style: TextStyle(fontSize: 16.0),
-                    ),
-                    SizedBox(height: 4),
-                    // Mostrando la Fecha formateada del log
-                    Text(
-                      'Fecha: $fechaFormateada',
-                      style: TextStyle(fontSize: 16.0),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        )
-      : Center(
-          child: Text(
-            'No hay logs disponibles.',
-            style: TextStyle(color: const Color.fromARGB(255, 230, 0, 0)),
+                  ),
           ),
-        ),
-),
+          // Pestaña de Estadísticas (Gráfico de barras).
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: _logStats.isNotEmpty
+                ? CustomPaint(
+                    size: Size(double.infinity, 300),
+                    painter: StatsChartPainter(_logStats),
+                  )
+                : Center(child: Text('Cargando datos del gráfico...')),
+          ),
         ],
       ),
     );
+  }
+}
+
+/// CustomPainter para dibujar el gráfico de barras de las estadísticas.
+class StatsChartPainter extends CustomPainter {
+  final List<LogStat> stats;
+  StatsChartPainter(this.stats);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (stats.isEmpty) return;
+
+    final Paint barPaint = Paint()
+      ..style = PaintingStyle.fill;
+
+    // Colores de las barras por tag.
+    List<Color> colors = [
+      Colors.blue, Colors.green, Colors.red, Colors.orange, Colors.purple
+    ];
+
+    // Se reserva parte inferior para los nombres de los tags.
+    final double bottomMargin = size.height * 0.3;
+    final double chartHeight = size.height - bottomMargin;
+    final double barWidth = size.width / (stats.length * 2);
+    final double maxCount =
+        stats.map((s) => s.count).reduce((a, b) => max(a, b)).toDouble();
+
+    final textPainter = TextPainter(
+        textAlign: TextAlign.center, textDirection: TextDirection.ltr);
+
+    for (int i = 0; i < stats.length; i++) {
+      final stat = stats[i];
+      // Calculamos la posición horizontal de cada barra.
+      final double left = i * 2 * barWidth + barWidth / 2;
+      final double right = left + barWidth;
+      final double barHeight =
+          (stat.count / maxCount) * chartHeight; // Altura proporcional.
+      final double top = chartHeight - barHeight;
+      final Rect barRect = Rect.fromLTRB(left, top, right, chartHeight);
+
+      // Establecemos el color para la barra.
+      barPaint.color = colors[i % colors.length];
+      canvas.drawRect(barRect, barPaint);
+
+      // Dibujar el número (cantidad de logs) sobre cada barra.
+      final countTextSpan = TextSpan(
+          text: stat.count.toString(),
+          style: TextStyle(color: Colors.black, fontSize: 12));
+      textPainter.text = countTextSpan;
+      textPainter.layout(minWidth: 0, maxWidth: barWidth);
+      final double countX = left + (barWidth - textPainter.width) / 2;
+      final double countY = top - textPainter.height - 2;
+      textPainter.paint(canvas, Offset(countX, countY));
+
+      // Dibujar el tag debajo de cada barra.
+      final tagTextSpan = TextSpan(
+          text: stat.tag,
+          style: TextStyle(color: Colors.black, fontSize: 10));
+      textPainter.text = tagTextSpan;
+      textPainter.layout(minWidth: 0, maxWidth: barWidth);
+      final double tagX = left + (barWidth - textPainter.width) / 2;
+      final double tagY = size.height - textPainter.height;
+      textPainter.paint(canvas, Offset(tagX, tagY));
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) {
+    return false;
   }
 }
