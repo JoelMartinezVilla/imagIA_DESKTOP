@@ -291,36 +291,57 @@ class _AutenticationPageState extends State<AutenticationPage> with SingleTicker
           ),
           // Pestaña de Logs
           Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: _logs.isNotEmpty
-                ? ListView.builder(
-                    itemCount: _logs.length,
-                    itemBuilder: (context, index) {
-                      var log = _logs[index];
-                      // Usamos la función formatTimestamp para mostrar la fecha de forma legible.
-                      String fechaFormateada = log['timestamp'] != null ? formatTimestamp(log['timestamp']) : 'No disponible';
-                      return Card(
-                        margin: EdgeInsets.symmetric(vertical: 8.0),
-                        child: ListTile(
-                          title: Text(
-                            'Acción: ${log['message'] ?? 'No disponible'}',
-                            style: TextStyle(color: Colors.black),
-                          ),
-                          subtitle: Text(
-                            'Fecha: $fechaFormateada',
-                            style: TextStyle(color: Colors.black),
-                          ),
-                        ),
-                      );
-                    },
-                  )
-                : Center(
-                    child: Text(
-                      'No hay logs disponibles.',
-                      style: TextStyle(color: const Color.fromARGB(255, 230, 0, 0)),
+  padding: const EdgeInsets.all(16.0),
+  child: _logs.isNotEmpty
+      ? ListView.builder(
+          itemCount: _logs.length,
+          itemBuilder: (context, index) {
+            var log = _logs[index];
+            // Usamos la función formatTimestamp para mostrar la fecha de forma legible.
+            String fechaFormateada = log['timestamp'] != null ? formatTimestamp(log['timestamp']) : 'No disponible';
+            return Card(
+              margin: EdgeInsets.symmetric(vertical: 8.0),
+              child: Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Mostrando el ID del log
+                    Text(
+                      'ID: ${log['id'] ?? 'No disponible'}',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16.0),
                     ),
-                  ),
+                    SizedBox(height: 4),
+                    // Mostrando el Tag del log
+                    Text(
+                      'Tag: ${log['tag'] ?? 'No disponible'}',
+                      style: TextStyle(fontSize: 16.0),
+                    ),
+                    SizedBox(height: 4),
+                    // Mostrando el Mensaje del log
+                    Text(
+                      'Mensaje: ${log['mensaje'] ?? 'No disponible'}',
+                      style: TextStyle(fontSize: 16.0),
+                    ),
+                    SizedBox(height: 4),
+                    // Mostrando la Fecha formateada del log
+                    Text(
+                      'Fecha: $fechaFormateada',
+                      style: TextStyle(fontSize: 16.0),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        )
+      : Center(
+          child: Text(
+            'No hay logs disponibles.',
+            style: TextStyle(color: const Color.fromARGB(255, 230, 0, 0)),
           ),
+        ),
+),
         ],
       ),
     );
