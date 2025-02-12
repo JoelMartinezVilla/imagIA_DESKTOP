@@ -762,16 +762,19 @@ class StatsChartPainter extends CustomPainter {
     final double bottomMargin = size.height * 0.3;
     final double chartHeight = size.height - bottomMargin;
     final double barWidth = size.width / (stats.length * 2);
+    // DEterminamos el valor máximo de los count.
     final double maxCount =
         stats.map((s) => s.count).reduce((a, b) => max(a, b)).toDouble();
     final textPainter = TextPainter(
         textAlign: TextAlign.center, textDirection: TextDirection.ltr);
+        // Iteramos a través de cada estadística para dibujar las barras y los textos.
     for (int i = 0; i < stats.length; i++) {
       final stat = stats[i];
       final double left = i * 2 * barWidth + barWidth / 2;
       final double right = left + barWidth;
       final double barHeight = (stat.count / maxCount) * chartHeight;
       final double top = chartHeight - barHeight;
+      // Definimos el rectángulo que representa la barra.
       final Rect barRect = Rect.fromLTRB(left, top, right, chartHeight);
       barPaint.color = colors[i % colors.length];
       canvas.drawRect(barRect, barPaint);
@@ -780,6 +783,7 @@ class StatsChartPainter extends CustomPainter {
           style: TextStyle(color: Colors.black, fontSize: 12));
       textPainter.text = countTextSpan;
       textPainter.layout(minWidth: 0, maxWidth: barWidth);
+      // Coloar el texto centrado.
       final double countX = left + (barWidth - textPainter.width) / 2;
       final double countY = top - textPainter.height - 2;
       textPainter.paint(canvas, Offset(countX, countY));
