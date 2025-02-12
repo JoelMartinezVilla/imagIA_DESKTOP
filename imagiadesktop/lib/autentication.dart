@@ -28,6 +28,9 @@ class _AutenticationPageState extends State<AutenticationPage>
   TabController? _tabController;
   int? _selectedUserId; // Para la pestaña de Cuotas
 
+  // Variable para almacenar el tag seleccionado en el dropdown de Logs.
+  String _selectedTag = 'Todos';
+
   @override
   void initState() {
     super.initState();
@@ -107,6 +110,8 @@ class _AutenticationPageState extends State<AutenticationPage>
         if (data.containsKey('data')) {
           setState(() {
             _logs = data['data'];
+            // Reiniciamos el tag seleccionado a "Todos" cada vez que se actualicen los logs.
+            _selectedTag = 'Todos';
           });
           // Procesamos los logs para generar los datos del gráfico.
           _procesarDatosParaStats();
@@ -149,7 +154,8 @@ class _AutenticationPageState extends State<AutenticationPage>
 
   /// Actualiza el plan del usuario usando la ruta y método (POST) original.
   Future<void> _actualizarPlanUsuario(int usuarioId, String nuevoPlan) async {
-    var usuario = _usuarios.firstWhere((u) => u['id'] == usuarioId, orElse: () => null);
+    var usuario =
+        _usuarios.firstWhere((u) => u['id'] == usuarioId, orElse: () => null);
     if (usuario == null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Usuario no encontrado'),
@@ -223,7 +229,8 @@ class _AutenticationPageState extends State<AutenticationPage>
   /// Función para obtener la cuota de un usuario desde la API.
   /// Se envían como query parameters 'telefon', 'nickname' y 'email'.
   Future<dynamic> _obtenerCuotaPorUsuario(int usuarioId) async {
-    final usuario = _usuarios.firstWhere((u) => u['id'] == usuarioId, orElse: () => null);
+    final usuario =
+        _usuarios.firstWhere((u) => u['id'] == usuarioId, orElse: () => null);
     if (usuario == null) throw Exception("Usuario no encontrado");
     final url = 'https://imagia3.ieti.site/api/admin/usuaris/quota';
     final uri = Uri.parse(url).replace(queryParameters: {
@@ -251,8 +258,10 @@ class _AutenticationPageState extends State<AutenticationPage>
   }
 
   /// Función para actualizar la cuota de un usuario.
-  Future<void> _actualizarCuotaUsuario(int usuarioId, int limit, int disponible) async {
-    final usuario = _usuarios.firstWhere((u) => u['id'] == usuarioId, orElse: () => null);
+  Future<void> _actualizarCuotaUsuario(
+      int usuarioId, int limit, int disponible) async {
+    final usuario =
+        _usuarios.firstWhere((u) => u['id'] == usuarioId, orElse: () => null);
     if (usuario == null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Usuario no encontrado'),
@@ -305,57 +314,20 @@ class _AutenticationPageState extends State<AutenticationPage>
     }
   }
 
-  /// Muestra un diálogo para actualizar la cuota del usuario seleccionado.
-  void _mostrarDialogActualizarCuota(int usuarioId) {
-    final TextEditingController limitController = TextEditingController();
-    final TextEditingController disponibleController = TextEditingController();
+  /// Función que devuelve la lista de tags únicos extraídos de _logs.
+  List<String> _getAllTags() {
+    final Set<String> tags =
+        _logs.map((log) => log['tag']?.toString() ?? 'No disponible').toSet();
+    return tags.toList();
+  }
 
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text("Actualizar cuota"),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: limitController,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(labelText: "Cuota Total"),
-              ),
-              TextField(
-                controller: disponibleController,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(labelText: "Cuota Disponible"),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text("Cancelar"),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                // Parsear los valores ingresados.
-                int? limit = int.tryParse(limitController.text);
-                int? disponible = int.tryParse(disponibleController.text);
-                if (limit == null || disponible == null) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text("Por favor, ingresa valores numéricos válidos"),
-                    backgroundColor: Colors.red,
-                  ));
-                  return;
-                }
-                await _actualizarCuotaUsuario(usuarioId, limit, disponible);
-                Navigator.of(context).pop();
-              },
-              child: Text("Actualizar"),
-            ),
-          ],
-        );
-      },
-    );
+  /// Función que devuelve los logs filtrados según el tag seleccionado.
+  List<dynamic> _getFilteredLogs() {
+    if (_selectedTag == 'Todos') {
+      return _logs;
+    } else {
+      return _logs.where((log) => log['tag'] == _selectedTag).toList();
+    }
   }
 
   @override
@@ -377,8 +349,13 @@ class _AutenticationPageState extends State<AutenticationPage>
           tabs: [
             Tab(child: Text('Usuarios', style: TextStyle(color: Colors.white))),
             Tab(child: Text('Logs', style: TextStyle(color: Colors.white))),
-            Tab(child: Text('Estadísticas', style: TextStyle(color: Colors.white))),
-            Tab(child: Text('Cuotas', style: TextStyle(color: Colors.white))), // Pestaña de Cuotas
+            Tab(
+                child: Text('Estadísticas',
+                    style: TextStyle(color: Colors.white))),
+            Tab(
+                child: Text('Cuotas',
+                    style:
+                        TextStyle(color: Colors.white))), // Pestaña de Cuotas
           ],
         ),
       ),
@@ -392,7 +369,8 @@ class _AutenticationPageState extends State<AutenticationPage>
                 ? Center(
                     child: Text(
                       _error!,
-                      style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                          color: Colors.red, fontWeight: FontWeight.bold),
                     ),
                   )
                 : _usuarios.isNotEmpty
@@ -410,7 +388,9 @@ class _AutenticationPageState extends State<AutenticationPage>
                                 children: [
                                   Text(
                                     'Nickname: ${usuario['nickname'] ?? 'No disponible'}',
-                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16.0),
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16.0),
                                   ),
                                   SizedBox(height: 4),
                                   Text(
@@ -426,23 +406,19 @@ class _AutenticationPageState extends State<AutenticationPage>
                                   DropdownButton<String>(
                                     value: currentPlan,
                                     onChanged: (String? newPlan) {
-                                      if (newPlan != null && newPlan != currentPlan) {
-                                        _actualizarPlanUsuario(usuario['id'], newPlan);
+                                      if (newPlan != null &&
+                                          newPlan != currentPlan) {
+                                        _actualizarPlanUsuario(
+                                            usuario['id'], newPlan);
                                       }
                                     },
                                     items: <String>['Free', 'Premium']
-                                        .map((String value) => DropdownMenuItem<String>(
+                                        .map((String value) =>
+                                            DropdownMenuItem<String>(
                                               value: value,
                                               child: Text(value),
                                             ))
                                         .toList(),
-                                  ),
-                                  // Botón para ver logs.
-                                  ElevatedButton(
-                                    onPressed: () {
-                                      _obtenerLogsDesdeAPI(); // Obtiene los logs globales.
-                                    },
-                                    child: Text('Ver Logs'),
                                   ),
                                 ],
                               ),
@@ -456,49 +432,87 @@ class _AutenticationPageState extends State<AutenticationPage>
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: _logs.isNotEmpty
-                ? ListView.builder(
-                    itemCount: _logs.length,
-                    itemBuilder: (context, index) {
-                      var log = _logs[index];
-                      String fechaFormateada = log['timestamp'] != null
-                          ? formatTimestamp(log['timestamp'])
-                          : 'No disponible';
-                      return Card(
-                        margin: EdgeInsets.symmetric(vertical: 8.0),
-                        child: Padding(
-                          padding: const EdgeInsets.all(12.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'ID: ${log['id'] ?? 'No disponible'}',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16.0),
+                ? Column(
+                    children: [
+                      // Dropdown para filtrar por tag.
+                      DropdownButton<String>(
+                        isExpanded: true,
+                        value: _selectedTag,
+                        items: (() {
+                          List<String> tags = _getAllTags();
+                          tags.insert(0, 'Todos');
+                          return tags
+                              .map((tag) => DropdownMenuItem<String>(
+                                    value: tag,
+                                    child: Text(tag),
+                                  ))
+                              .toList();
+                        }()),
+                        onChanged: (String? newTag) {
+                          setState(() {
+                            _selectedTag = newTag!;
+                          });
+                        },
+                      ),
+                      SizedBox(height: 16),
+                      // Lista de logs filtrados.
+                      Expanded(
+                        child: _getFilteredLogs().isNotEmpty
+                            ? ListView.builder(
+                                itemCount: _getFilteredLogs().length,
+                                itemBuilder: (context, index) {
+                                  var log = _getFilteredLogs()[index];
+                                  String fechaFormateada =
+                                      log['timestamp'] != null
+                                          ? formatTimestamp(log['timestamp'])
+                                          : 'No disponible';
+                                  return Card(
+                                    margin: EdgeInsets.symmetric(vertical: 8.0),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(12.0),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'ID: ${log['id'] ?? 'No disponible'}',
+                                            style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16.0),
+                                          ),
+                                          SizedBox(height: 4),
+                                          Text(
+                                            'Tag: ${log['tag'] ?? 'No disponible'}',
+                                            style: TextStyle(fontSize: 16.0),
+                                          ),
+                                          SizedBox(height: 4),
+                                          Text(
+                                            'Mensaje: ${log['mensaje'] ?? 'No disponible'}',
+                                            style: TextStyle(fontSize: 16.0),
+                                          ),
+                                          SizedBox(height: 4),
+                                          Text(
+                                            'Fecha: $fechaFormateada',
+                                            style: TextStyle(fontSize: 16.0),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              )
+                            : Center(
+                                child: Text('No hay logs con este tag'),
                               ),
-                              SizedBox(height: 4),
-                              Text(
-                                'Tag: ${log['tag'] ?? 'No disponible'}',
-                                style: TextStyle(fontSize: 16.0),
-                              ),
-                              SizedBox(height: 4),
-                              Text(
-                                'Mensaje: ${log['mensaje'] ?? 'No disponible'}',
-                                style: TextStyle(fontSize: 16.0),
-                              ),
-                              SizedBox(height: 4),
-                              Text(
-                                'Fecha: $fechaFormateada',
-                                style: TextStyle(fontSize: 16.0),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
+                      ),
+                    ],
                   )
                 : Center(
                     child: Text(
                       'No hay logs disponibles.',
-                      style: TextStyle(color: Color.fromARGB(255, 230, 0, 0), fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                          color: Color.fromARGB(255, 230, 0, 0),
+                          fontWeight: FontWeight.bold),
                     ),
                   ),
           ),
@@ -517,7 +531,8 @@ class _AutenticationPageState extends State<AutenticationPage>
             padding: const EdgeInsets.all(16.0),
             child: _usuarios.isNotEmpty
                 ? _buildCuotasTab()
-                : Center(child: Text('Cargando usuarios para consultar cuotas...')),
+                : Center(
+                    child: Text('Cargando usuarios para consultar cuotas...')),
           ),
         ],
       ),
@@ -544,7 +559,8 @@ Widget _buildCuotasTab() {
             items: state._usuarios.map((user) {
               return DropdownMenuItem<int>(
                 value: user['id'],
-                child: Text(user['nickname'] ?? user['telefon'] ?? 'Sin nombre'),
+                child:
+                    Text(user['nickname'] ?? user['telefon'] ?? 'Sin nombre'),
               );
             }).toList(),
           ),
@@ -574,7 +590,9 @@ Widget _buildCuotasTab() {
                                 children: [
                                   Text(
                                     'Cuota Total: ${cuota['quota_total']}',
-                                    style: TextStyle(fontSize: 16.0, fontWeight: FontWeight.bold),
+                                    style: TextStyle(
+                                        fontSize: 16.0,
+                                        fontWeight: FontWeight.bold),
                                   ),
                                   SizedBox(height: 4),
                                   Text(
@@ -588,7 +606,8 @@ Widget _buildCuotasTab() {
                           // Botón para modificar la cuota
                           ElevatedButton(
                             onPressed: () {
-                              state._mostrarDialogActualizarCuota(state._selectedUserId!);
+                              state._mostrarDialogActualizarCuota(
+                                  state._selectedUserId!);
                             },
                             child: Text("Modificar cuota"),
                           ),
@@ -611,6 +630,7 @@ extension on _AutenticationPageState {
   void _mostrarDialogActualizarCuota(int usuarioId) {
     final TextEditingController limitController = TextEditingController();
     final TextEditingController disponibleController = TextEditingController();
+
     showDialog(
       context: context,
       builder: (context) {
@@ -642,7 +662,8 @@ extension on _AutenticationPageState {
                 int? disponible = int.tryParse(disponibleController.text);
                 if (limit == null || disponible == null) {
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text("Por favor, ingresa valores numéricos válidos"),
+                    content:
+                        Text("Por favor, ingresa valores numéricos válidos"),
                     backgroundColor: Colors.red,
                   ));
                   return;
@@ -662,10 +683,13 @@ extension on _AutenticationPageState {
 }
 
 /// Función para actualizar la cuota de un usuario.
-Future<void> _actualizarCuotaUsuario(int usuarioId, int limit, int disponible) async {
+Future<void> _actualizarCuotaUsuario(
+    int usuarioId, int limit, int disponible) async {
   final _AutenticationPageState state =
-      (await WidgetsBinding.instance!.renderViewElement)!.findAncestorStateOfType<_AutenticationPageState>()!;
-  final usuario = state._usuarios.firstWhere((u) => u['id'] == usuarioId, orElse: () => null);
+      (await WidgetsBinding.instance!.renderViewElement)!
+          .findAncestorStateOfType<_AutenticationPageState>()!;
+  final usuario = state._usuarios
+      .firstWhere((u) => u['id'] == usuarioId, orElse: () => null);
   if (usuario == null) {
     ScaffoldMessenger.of(state.context).showSnackBar(SnackBar(
       content: Text('Usuario no encontrado'),
@@ -727,13 +751,21 @@ class StatsChartPainter extends CustomPainter {
     if (stats.isEmpty) return;
     final Paint barPaint = Paint()..style = PaintingStyle.fill;
     // Colores de las barras por tag.
-    List<Color> colors = [Colors.blue, Colors.green, Colors.red, Colors.orange, Colors.purple];
+    List<Color> colors = [
+      Colors.blue,
+      Colors.green,
+      Colors.red,
+      Colors.orange,
+      Colors.purple
+    ];
     // Se reserva parte inferior para los nombres de los tags.
     final double bottomMargin = size.height * 0.3;
     final double chartHeight = size.height - bottomMargin;
     final double barWidth = size.width / (stats.length * 2);
-    final double maxCount = stats.map((s) => s.count).reduce((a, b) => max(a, b)).toDouble();
-    final textPainter = TextPainter(textAlign: TextAlign.center, textDirection: TextDirection.ltr);
+    final double maxCount =
+        stats.map((s) => s.count).reduce((a, b) => max(a, b)).toDouble();
+    final textPainter = TextPainter(
+        textAlign: TextAlign.center, textDirection: TextDirection.ltr);
     for (int i = 0; i < stats.length; i++) {
       final stat = stats[i];
       final double left = i * 2 * barWidth + barWidth / 2;
@@ -743,13 +775,16 @@ class StatsChartPainter extends CustomPainter {
       final Rect barRect = Rect.fromLTRB(left, top, right, chartHeight);
       barPaint.color = colors[i % colors.length];
       canvas.drawRect(barRect, barPaint);
-      final countTextSpan = TextSpan(text: stat.count.toString(), style: TextStyle(color: Colors.black, fontSize: 12));
+      final countTextSpan = TextSpan(
+          text: stat.count.toString(),
+          style: TextStyle(color: Colors.black, fontSize: 12));
       textPainter.text = countTextSpan;
       textPainter.layout(minWidth: 0, maxWidth: barWidth);
       final double countX = left + (barWidth - textPainter.width) / 2;
       final double countY = top - textPainter.height - 2;
       textPainter.paint(canvas, Offset(countX, countY));
-      final tagTextSpan = TextSpan(text: stat.tag, style: TextStyle(color: Colors.black, fontSize: 10));
+      final tagTextSpan = TextSpan(
+          text: stat.tag, style: TextStyle(color: Colors.black, fontSize: 10));
       textPainter.text = tagTextSpan;
       textPainter.layout(minWidth: 0, maxWidth: barWidth);
       final double tagX = left + (barWidth - textPainter.width) / 2;
